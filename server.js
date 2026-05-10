@@ -15,25 +15,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // MySQL Connection Pool configured for TiDB Cloud
 const pool = mysql.createPool({
-  // Use Environment Variables for security
   host: process.env.TIDB_HOST || 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
   user: process.env.TIDB_USER || 'hzefXUdo6KJNcGf.root',
   password: process.env.TIDB_PASSWORD || 'mIxtaPrDymbCHN2M',
-  database: process.env.TIDB_DB_NAME || 'test', // Use 'test' instead of 'sys' for your app tables
+  database: process.env.TIDB_DB_NAME || 'test', 
   port: process.env.TIDB_PORT || 4000,
-  
-  // CRITICAL: TiDB Cloud requires SSL
   ssl: {
     minVersion: 'TLSv1.2',
     rejectUnauthorized: true 
   },
-  
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
 
-// Error handling middleware
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
@@ -44,37 +39,13 @@ const asyncHandler = (fn) => (req, res, next) => {
 
 app.get('/api/dashboard/stats', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
-  
   try {
-    // Total food items
-    const [[totalFood]] = await conn.query(
-      'SELECT COUNT(*) as count FROM Food_Inventory'
-    );
-    
-    // Good food count
-    const [[goodFood]] = await conn.query(
-      'SELECT COUNT(*) as count FROM Food_Inventory WHERE Condition_Status = "Good"'
-    );
-    
-    // Bad food count
-    const [[badFood]] = await conn.query(
-      'SELECT COUNT(*) as count FROM Food_Inventory WHERE Condition_Status = "Bad"'
-    );
-    
-    // Pending food count
-    const [[pendingFood]] = await conn.query(
-      'SELECT COUNT(*) as count FROM Food_Inventory WHERE Condition_Status = "Pending"'
-    );
-    
-    // NGOs served (unique NGOs with claims)
-    const [[ngosServed]] = await conn.query(
-      'SELECT COUNT(DISTINCT NGO_ID) as count FROM Claim'
-    );
-    
-    // Total quantity of good food
-    const [[goodQuantity]] = await conn.query(
-      'SELECT COALESCE(SUM(Quantity), 0) as total FROM Food_Inventory WHERE Condition_Status = "Good"'
-    );
+    const [[totalFood]] = await conn.query('SELECT COUNT(*) as count FROM Food_Inventory');
+    const [[goodFood]] = await conn.query('SELECT COUNT(*) as count FROM Food_Inventory WHERE Condition_Status = "Good"');
+    const [[badFood]] = await conn.query('SELECT COUNT(*) as count FROM Food_Inventory WHERE Condition_Status = "Bad"');
+    const [[pendingFood]] = await conn.query('SELECT COUNT(*) as count FROM Food_Inventory WHERE Condition_Status = "Pending"');
+    const [[ngosServed]] = await conn.query('SELECT COUNT(DISTINCT NGO_ID) as count FROM Claim');
+    const [[goodQuantity]] = await conn.query('SELECT COALESCE(SUM(Quantity), 0) as total FROM Food_Inventory WHERE Condition_Status = "Good"');
     
     res.json({
       totalFood: totalFood.count,
@@ -105,10 +76,7 @@ app.get('/api/donors', asyncHandler(async (req, res) => {
 
 app.post('/api/donors', asyncHandler(async (req, res) => {
   const { name, type, pincode } = req.body;
-  
-  if (!name || !pincode) {
-    return res.status(400).json({ error: 'Name and Pincode are required' });
-  }
+  if (!name || !pincode) return res.status(400).json({ error: 'Name and Pincode are required' });
   
   const conn = await pool.getConnection();
   try {
@@ -116,13 +84,7 @@ app.post('/api/donors', asyncHandler(async (req, res) => {
       'INSERT INTO Donor (Name, Type, Pincode) VALUES (?, ?, ?)',
       [name, type || 'Individual', pincode]
     );
-    
-    res.status(201).json({
-      id: result.insertId,
-      name,
-      type: type || 'Individual',
-      pincode
-    });
+    res.status(201).json({ id: result.insertId, name, type: type || 'Individual', pincode });
   } finally {
     conn.release();
   }
@@ -131,14 +93,9 @@ app.post('/api/donors', asyncHandler(async (req, res) => {
 app.put('/api/donors/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name, type, pincode } = req.body;
-  
   const conn = await pool.getConnection();
   try {
-    await conn.query(
-      'UPDATE Donor SET Name = ?, Type = ?, Pincode = ? WHERE Donor_ID = ?',
-      [name, type, pincode, id]
-    );
-    
+    await conn.query('UPDATE Donor SET Name = ?, Type = ?, Pincode = ? WHERE Donor_ID = ?', [name, type, pincode, id]);
     res.json({ message: 'Donor updated successfully' });
   } finally {
     conn.release();
@@ -148,7 +105,6 @@ app.put('/api/donors/:id', asyncHandler(async (req, res) => {
 app.delete('/api/donors/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const conn = await pool.getConnection();
-  
   try {
     await conn.query('DELETE FROM Donor WHERE Donor_ID = ?', [id]);
     res.json({ message: 'Donor deleted successfully' });
@@ -165,10 +121,7 @@ app.get('/api/food-inventory', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [foods] = await conn.query(`
-      SELECT 
-        f.*,
-        d.Name as Donor_Name,
-        d.Type as Donor_Type
+      SELECT f.*, d.Name as Donor_Name, d.Type as Donor_Type
       FROM Food_Inventory f
       LEFT JOIN Donor d ON f.Donor_ID = d.Donor_ID
       ORDER BY f.FID DESC
@@ -181,7 +134,6 @@ app.get('/api/food-inventory', asyncHandler(async (req, res) => {
 
 app.post('/api/food-inventory', asyncHandler(async (req, res) => {
   const { name, quantity, unit, expiryDate, category, donorId } = req.body;
-  
   if (!name || !quantity || !unit || !expiryDate || !donorId) {
     return res.status(400).json({ error: 'All fields are required' });
   }
@@ -189,48 +141,42 @@ app.post('/api/food-inventory', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [result] = await conn.query(
-      `INSERT INTO Food_Inventory 
-       (Name, Quantity, Unit, Expiry_Date, Category, Condition_Status, Donor_ID) 
+      `INSERT INTO Food_Inventory (Name, Quantity, Unit, Expiry_Date, Category, Condition_Status, Donor_ID) 
        VALUES (?, ?, ?, ?, ?, 'Pending', ?)`,
       [name, quantity, unit, expiryDate, category || 'Other', donorId]
     );
-    
-    res.status(201).json({
-      id: result.insertId,
-      name,
-      quantity,
-      unit,
-      expiryDate,
-      category: category || 'Other',
-      conditionStatus: 'Pending',
-      donorId
-    });
+    res.status(201).json({ id: result.insertId, name, quantity, unit, expiryDate, category: category || 'Other', conditionStatus: 'Pending', donorId });
   } finally {
     conn.release();
   }
 }));
 
+// HARDENED: Replaces the PL/SQL Trigger with an Application-Level Transaction
 app.put('/api/food-inventory/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name, quantity, unit, expiryDate, category, conditionStatus } = req.body;
   
   const conn = await pool.getConnection();
   try {
+    await conn.beginTransaction();
+    
+    // Lock the row and check the old status
+    const [[currentFood]] = await conn.query('SELECT Condition_Status FROM Food_Inventory WHERE FID = ? FOR UPDATE', [id]);
+    
+    if (!currentFood) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Food item not found' });
+    }
+
     await conn.query(
-      `UPDATE Food_Inventory 
-       SET Name = ?, Quantity = ?, Unit = ?, Expiry_Date = ?, Category = ?, Condition_Status = ?
-       WHERE FID = ?`,
+      `UPDATE Food_Inventory SET Name = ?, Quantity = ?, Unit = ?, Expiry_Date = ?, Category = ?, Condition_Status = ? WHERE FID = ?`,
       [name, quantity, unit, expiryDate, category, conditionStatus, id]
     );
     
-    // If condition status changed to "Bad", automatically create compost batch
-    if (conditionStatus === 'Bad') {
-      const [existing] = await conn.query(
-        'SELECT * FROM Compost_Batch WHERE FID = ?',
-        [id]
-      );
-      
-      if (existing.length === 0) {
+    // The exact logic from your old trigger: IF OLD.status != 'BAD' AND NEW.status = 'BAD'
+    if (currentFood.Condition_Status !== 'Bad' && conditionStatus === 'Bad') {
+      const [[existing]] = await conn.query('SELECT * FROM Compost_Batch WHERE FID = ?', [id]);
+      if (!existing) {
         await conn.query(
           'INSERT INTO Compost_Batch (Process_Type, Start_Date, FID) VALUES (?, ?, ?)',
           ['Organic Waste', new Date().toISOString().split('T')[0], id]
@@ -238,7 +184,11 @@ app.put('/api/food-inventory/:id', asyncHandler(async (req, res) => {
       }
     }
     
+    await conn.commit();
     res.json({ message: 'Food inventory updated successfully' });
+  } catch (error) {
+    await conn.rollback();
+    throw error;
   } finally {
     conn.release();
   }
@@ -247,7 +197,6 @@ app.put('/api/food-inventory/:id', asyncHandler(async (req, res) => {
 app.delete('/api/food-inventory/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const conn = await pool.getConnection();
-  
   try {
     await conn.query('DELETE FROM Food_Inventory WHERE FID = ?', [id]);
     res.json({ message: 'Food item deleted successfully' });
@@ -274,9 +223,7 @@ app.get('/api/drivers', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [drivers] = await conn.query(`
-      SELECT v.*, d.Vehicle_Type
-      FROM Volunteer v
-      JOIN Driver d ON v.Vol_ID = d.Vol_ID
+      SELECT v.*, d.Vehicle_Type FROM Volunteer v JOIN Driver d ON v.Vol_ID = d.Vol_ID
     `);
     res.json(drivers);
   } finally {
@@ -288,9 +235,7 @@ app.get('/api/inspectors', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [inspectors] = await conn.query(`
-      SELECT v.*, i.Certification
-      FROM Volunteer v
-      JOIN Inspector i ON v.Vol_ID = i.Vol_ID
+      SELECT v.*, i.Certification FROM Volunteer v JOIN Inspector i ON v.Vol_ID = i.Vol_ID
     `);
     res.json(inspectors);
   } finally {
@@ -300,29 +245,13 @@ app.get('/api/inspectors', asyncHandler(async (req, res) => {
 
 app.post('/api/volunteers/driver', asyncHandler(async (req, res) => {
   const { name, licenseNo, vehicleType } = req.body;
-  
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    
-    const [result] = await conn.query(
-      'INSERT INTO Volunteer (Name, License_No) VALUES (?, ?)',
-      [name, licenseNo]
-    );
-    
-    await conn.query(
-      'INSERT INTO Driver (Vol_ID, Vehicle_Type) VALUES (?, ?)',
-      [result.insertId, vehicleType]
-    );
-    
+    const [result] = await conn.query('INSERT INTO Volunteer (Name, License_No) VALUES (?, ?)', [name, licenseNo]);
+    await conn.query('INSERT INTO Driver (Vol_ID, Vehicle_Type) VALUES (?, ?)', [result.insertId, vehicleType]);
     await conn.commit();
-    
-    res.status(201).json({
-      id: result.insertId,
-      name,
-      licenseNo,
-      vehicleType
-    });
+    res.status(201).json({ id: result.insertId, name, licenseNo, vehicleType });
   } catch (error) {
     await conn.rollback();
     throw error;
@@ -333,29 +262,13 @@ app.post('/api/volunteers/driver', asyncHandler(async (req, res) => {
 
 app.post('/api/volunteers/inspector', asyncHandler(async (req, res) => {
   const { name, licenseNo, certification } = req.body;
-  
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    
-    const [result] = await conn.query(
-      'INSERT INTO Volunteer (Name, License_No) VALUES (?, ?)',
-      [name, licenseNo]
-    );
-    
-    await conn.query(
-      'INSERT INTO Inspector (Vol_ID, Certification) VALUES (?, ?)',
-      [result.insertId, certification]
-    );
-    
+    const [result] = await conn.query('INSERT INTO Volunteer (Name, License_No) VALUES (?, ?)', [name, licenseNo]);
+    await conn.query('INSERT INTO Inspector (Vol_ID, Certification) VALUES (?, ?)', [result.insertId, certification]);
     await conn.commit();
-    
-    res.status(201).json({
-      id: result.insertId,
-      name,
-      licenseNo,
-      certification
-    });
+    res.status(201).json({ id: result.insertId, name, licenseNo, certification });
   } catch (error) {
     await conn.rollback();
     throw error;
@@ -372,11 +285,7 @@ app.get('/api/inspections', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [reports] = await conn.query(`
-      SELECT 
-        ir.*,
-        v.Name as Inspector_Name,
-        f.Name as Food_Name,
-        f.Condition_Status
+      SELECT ir.*, v.Name as Inspector_Name, f.Name as Food_Name, f.Condition_Status
       FROM Inspection_Report ir
       JOIN Inspector ins ON ir.Ins_ID = ins.Vol_ID
       JOIN Volunteer v ON ins.Vol_ID = v.Vol_ID
@@ -389,43 +298,35 @@ app.get('/api/inspections', asyncHandler(async (req, res) => {
   }
 }));
 
+// HARDENED: Transact the inspection logging, food update, and compost generation.
 app.post('/api/inspections', asyncHandler(async (req, res) => {
   const { inspectorId, foodId, qualityScore, notes } = req.body;
-  
-  if (!inspectorId || !foodId || qualityScore === undefined) {
-    return res.status(400).json({ error: 'Required fields missing' });
-  }
+  if (!inspectorId || !foodId || qualityScore === undefined) return res.status(400).json({ error: 'Required fields missing' });
   
   const conn = await pool.getConnection();
   try {
+    await conn.beginTransaction();
+
+    const [[currentFood]] = await conn.query('SELECT Condition_Status FROM Food_Inventory WHERE FID = ? FOR UPDATE', [foodId]);
+    if (!currentFood) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Food item not found' });
+    }
+
     const [result] = await conn.query(
-      `INSERT INTO Inspection_Report 
-       (Report_Date, Quality_Score, Notes, Ins_ID, FID) 
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO Inspection_Report (Report_Date, Quality_Score, Notes, Ins_ID, FID) VALUES (?, ?, ?, ?, ?)`,
       [new Date().toISOString().split('T')[0], qualityScore, notes || '', inspectorId, foodId]
     );
     
-    // Auto-update condition based on quality score
-    let condition = 'Pending';
-    if (qualityScore >= 7) {
-      condition = 'Good';
-    } else if (qualityScore < 5) {
-      condition = 'Bad';
-    }
+    let newCondition = 'Pending';
+    if (qualityScore >= 7) newCondition = 'Good';
+    else if (qualityScore < 5) newCondition = 'Bad';
     
-    await conn.query(
-      'UPDATE Food_Inventory SET Condition_Status = ? WHERE FID = ?',
-      [condition, foodId]
-    );
+    await conn.query('UPDATE Food_Inventory SET Condition_Status = ? WHERE FID = ?', [newCondition, foodId]);
     
-    // If bad, create compost batch
-    if (condition === 'Bad') {
-      const [existing] = await conn.query(
-        'SELECT * FROM Compost_Batch WHERE FID = ?',
-        [foodId]
-      );
-      
-      if (existing.length === 0) {
+    if (currentFood.Condition_Status !== 'Bad' && newCondition === 'Bad') {
+      const [[existing]] = await conn.query('SELECT * FROM Compost_Batch WHERE FID = ?', [foodId]);
+      if (!existing) {
         await conn.query(
           'INSERT INTO Compost_Batch (Process_Type, Start_Date, FID) VALUES (?, ?, ?)',
           ['Organic Waste', new Date().toISOString().split('T')[0], foodId]
@@ -433,15 +334,11 @@ app.post('/api/inspections', asyncHandler(async (req, res) => {
       }
     }
     
-    res.status(201).json({
-      id: result.insertId,
-      reportDate: new Date().toISOString().split('T')[0],
-      qualityScore,
-      notes,
-      inspectorId,
-      foodId,
-      condition
-    });
+    await conn.commit();
+    res.status(201).json({ id: result.insertId, reportDate: new Date().toISOString().split('T')[0], qualityScore, notes, inspectorId, foodId, condition: newCondition });
+  } catch (error) {
+    await conn.rollback();
+    throw error;
   } finally {
     conn.release();
   }
@@ -455,12 +352,7 @@ app.get('/api/trips', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [trips] = await conn.query(`
-      SELECT 
-        t.*,
-        v.Name as Driver_Name,
-        v.License_No,
-        f.Name as Food_Name,
-        drv.Vehicle_Type
+      SELECT t.*, v.Name as Driver_Name, v.License_No, f.Name as Food_Name, drv.Vehicle_Type
       FROM Trip t
       JOIN Driver drv ON t.Driver_ID = drv.Vol_ID
       JOIN Volunteer v ON drv.Vol_ID = v.Vol_ID
@@ -475,27 +367,15 @@ app.get('/api/trips', asyncHandler(async (req, res) => {
 
 app.post('/api/trips', asyncHandler(async (req, res) => {
   const { vehicleNo, startTime, distance, driverId, foodId } = req.body;
-  
-  if (!vehicleNo || !startTime || !driverId) {
-    return res.status(400).json({ error: 'Required fields missing' });
-  }
+  if (!vehicleNo || !startTime || !driverId) return res.status(400).json({ error: 'Required fields missing' });
   
   const conn = await pool.getConnection();
   try {
     const [result] = await conn.query(
-      `INSERT INTO Trip (Vehicle_No, Start_Time, Distance, Driver_ID, FID) 
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO Trip (Vehicle_No, Start_Time, Distance, Driver_ID, FID) VALUES (?, ?, ?, ?, ?)`,
       [vehicleNo, startTime, distance || 0, driverId, foodId || null]
     );
-    
-    res.status(201).json({
-      id: result.insertId,
-      vehicleNo,
-      startTime,
-      distance: distance || 0,
-      driverId,
-      foodId
-    });
+    res.status(201).json({ id: result.insertId, vehicleNo, startTime, distance: distance || 0, driverId, foodId });
   } finally {
     conn.release();
   }
@@ -517,10 +397,7 @@ app.get('/api/ngos', asyncHandler(async (req, res) => {
 
 app.post('/api/ngos', asyncHandler(async (req, res) => {
   const { name, capacity, type } = req.body;
-  
-  if (!name || !capacity) {
-    return res.status(400).json({ error: 'Name and Capacity are required' });
-  }
+  if (!name || !capacity) return res.status(400).json({ error: 'Name and Capacity are required' });
   
   const conn = await pool.getConnection();
   try {
@@ -528,13 +405,7 @@ app.post('/api/ngos', asyncHandler(async (req, res) => {
       'INSERT INTO Beneficiary_NGO (Name, Capacity, Type) VALUES (?, ?, ?)',
       [name, capacity, type || 'General']
     );
-    
-    res.status(201).json({
-      id: result.insertId,
-      name,
-      capacity,
-      type: type || 'General'
-    });
+    res.status(201).json({ id: result.insertId, name, capacity, type: type || 'General' });
   } finally {
     conn.release();
   }
@@ -548,13 +419,7 @@ app.get('/api/claims', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [claims] = await conn.query(`
-      SELECT 
-        c.*,
-        n.Name as NGO_Name,
-        f.Name as Food_Name,
-        f.Quantity,
-        f.Unit,
-        f.Condition_Status
+      SELECT c.*, n.Name as NGO_Name, f.Name as Food_Name, f.Quantity, f.Unit, f.Condition_Status
       FROM Claim c
       JOIN Beneficiary_NGO n ON c.NGO_ID = n.NGO_ID
       JOIN Food_Inventory f ON c.FID = f.FID
@@ -568,64 +433,41 @@ app.get('/api/claims', asyncHandler(async (req, res) => {
 
 app.post('/api/claims', asyncHandler(async (req, res) => {
   const { ngoId, foodId } = req.body;
-  
-  if (!ngoId || !foodId) {
-    return res.status(400).json({ error: 'NGO ID and Food ID are required' });
-  }
+  if (!ngoId || !foodId) return res.status(400).json({ error: 'NGO ID and Food ID are required' });
   
   const conn = await pool.getConnection();
   try {
-    // Check if food is good and has quantity
-    const [[food]] = await conn.query(
-      'SELECT * FROM Food_Inventory WHERE FID = ?',
-      [foodId]
-    );
-    
+    await conn.beginTransaction();
+
+    const [[food]] = await conn.query('SELECT * FROM Food_Inventory WHERE FID = ? FOR UPDATE', [foodId]);
     if (!food) {
+      await conn.rollback();
       return res.status(404).json({ error: 'Food item not found' });
     }
-    
     if (food.Condition_Status !== 'Good') {
+      await conn.rollback();
       return res.status(400).json({ error: 'Food must be in Good condition to claim' });
     }
-    
     if (food.Quantity <= 0) {
+      await conn.rollback();
       return res.status(400).json({ error: 'Food quantity is zero' });
     }
     
-    // Check if already claimed
-    const [[existing]] = await conn.query(
-      'SELECT * FROM Claim WHERE FID = ?',
-      [foodId]
-    );
-    
+    const [[existing]] = await conn.query('SELECT * FROM Claim WHERE FID = ?', [foodId]);
     if (existing) {
+      await conn.rollback();
       return res.status(400).json({ error: 'Food has already been claimed' });
     }
     
-    await conn.beginTransaction();
-    
-    // Create claim
     const [result] = await conn.query(
       'INSERT INTO Claim (Claim_Date, NGO_ID, FID) VALUES (?, ?, ?)',
       [new Date().toISOString().split('T')[0], ngoId, foodId]
     );
     
-    // Set quantity to 0 to mark as claimed
-    await conn.query(
-      'UPDATE Food_Inventory SET Quantity = 0 WHERE FID = ?',
-      [foodId]
-    );
+    await conn.query('UPDATE Food_Inventory SET Quantity = 0 WHERE FID = ?', [foodId]);
     
     await conn.commit();
-    
-    res.status(201).json({
-      id: result.insertId,
-      ngoId,
-      foodId,
-      claimDate: new Date().toISOString().split('T')[0],
-      message: 'Food claimed successfully'
-    });
+    res.status(201).json({ id: result.insertId, ngoId, foodId, claimDate: new Date().toISOString().split('T')[0], message: 'Food claimed successfully' });
   } catch (error) {
     await conn.rollback();
     throw error;
@@ -642,11 +484,7 @@ app.get('/api/compost', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [batches] = await conn.query(`
-      SELECT 
-        cb.*,
-        f.Name as Food_Name,
-        f.Quantity,
-        f.Unit
+      SELECT cb.*, f.Name as Food_Name, f.Quantity, f.Unit
       FROM Compost_Batch cb
       JOIN Food_Inventory f ON cb.FID = f.FID
       ORDER BY cb.Start_Date DESC
@@ -659,34 +497,18 @@ app.get('/api/compost', asyncHandler(async (req, res) => {
 
 app.post('/api/compost', asyncHandler(async (req, res) => {
   const { foodId, processType } = req.body;
-  
-  if (!foodId) {
-    return res.status(400).json({ error: 'Food ID is required' });
-  }
+  if (!foodId) return res.status(400).json({ error: 'Food ID is required' });
   
   const conn = await pool.getConnection();
   try {
-    // Check if already in a batch
-    const [[existing]] = await conn.query(
-      'SELECT * FROM Compost_Batch WHERE FID = ?',
-      [foodId]
-    );
-    
-    if (existing) {
-      return res.status(400).json({ error: 'Food is already in a compost batch' });
-    }
+    const [[existing]] = await conn.query('SELECT * FROM Compost_Batch WHERE FID = ?', [foodId]);
+    if (existing) return res.status(400).json({ error: 'Food is already in a compost batch' });
     
     const [result] = await conn.query(
       'INSERT INTO Compost_Batch (Process_Type, Start_Date, FID) VALUES (?, ?, ?)',
       [processType || 'Organic Waste', new Date().toISOString().split('T')[0], foodId]
     );
-    
-    res.status(201).json({
-      id: result.insertId,
-      foodId,
-      processType: processType || 'Organic Waste',
-      startDate: new Date().toISOString().split('T')[0]
-    });
+    res.status(201).json({ id: result.insertId, foodId, processType: processType || 'Organic Waste', startDate: new Date().toISOString().split('T')[0] });
   } finally {
     conn.release();
   }
@@ -700,11 +522,7 @@ app.get('/api/upcycled-products', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [products] = await conn.query(`
-      SELECT 
-        up.*,
-        cb.Process_Type,
-        cb.Start_Date,
-        f.Name as Food_Source
+      SELECT up.*, cb.Process_Type, cb.Start_Date, f.Name as Food_Source
       FROM Upcycled_Product up
       JOIN Compost_Batch cb ON up.Batch_ID = cb.Batch_ID
       JOIN Food_Inventory f ON cb.FID = f.FID
@@ -718,10 +536,7 @@ app.get('/api/upcycled-products', asyncHandler(async (req, res) => {
 
 app.post('/api/upcycled-products', asyncHandler(async (req, res) => {
   const { name, price, stock, batchId } = req.body;
-  
-  if (!name || !batchId) {
-    return res.status(400).json({ error: 'Name and Batch ID are required' });
-  }
+  if (!name || !batchId) return res.status(400).json({ error: 'Name and Batch ID are required' });
   
   const conn = await pool.getConnection();
   try {
@@ -729,14 +544,7 @@ app.post('/api/upcycled-products', asyncHandler(async (req, res) => {
       'INSERT INTO Upcycled_Product (Name, Price, Stock, Batch_ID) VALUES (?, ?, ?, ?)',
       [name, price || 0, stock || 0, batchId]
     );
-    
-    res.status(201).json({
-      id: result.insertId,
-      name,
-      price: price || 0,
-      stock: stock || 0,
-      batchId
-    });
+    res.status(201).json({ id: result.insertId, name, price: price || 0, stock: stock || 0, batchId });
   } finally {
     conn.release();
   }
@@ -750,9 +558,7 @@ app.get('/api/waivers', asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [waivers] = await conn.query(`
-      SELECT 
-        w.*,
-        d.Name as Donor_Name
+      SELECT w.*, d.Name as Donor_Name
       FROM Waiver w
       JOIN Donor d ON w.Donor_ID = d.Donor_ID
       ORDER BY w.Signed_Date DESC
@@ -765,10 +571,7 @@ app.get('/api/waivers', asyncHandler(async (req, res) => {
 
 app.post('/api/waivers', asyncHandler(async (req, res) => {
   const { donorId, signedDate } = req.body;
-  
-  if (!donorId) {
-    return res.status(400).json({ error: 'Donor ID is required' });
-  }
+  if (!donorId) return res.status(400).json({ error: 'Donor ID is required' });
   
   const conn = await pool.getConnection();
   try {
@@ -776,18 +579,12 @@ app.post('/api/waivers', asyncHandler(async (req, res) => {
       'INSERT INTO Waiver (Signed_Date, Donor_ID) VALUES (?, ?)',
       [signedDate || new Date().toISOString().split('T')[0], donorId]
     );
-    
-    res.status(201).json({
-      id: result.insertId,
-      donorId,
-      signedDate: signedDate || new Date().toISOString().split('T')[0]
-    });
+    res.status(201).json({ id: result.insertId, donorId, signedDate: signedDate || new Date().toISOString().split('T')[0] });
   } finally {
     conn.release();
   }
 }));
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: err.message || 'Internal server error' });
