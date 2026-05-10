@@ -2,14 +2,14 @@ DROP DATABASE IF EXISTS SmartFoodDB;
 CREATE DATABASE SmartFoodDB;
 USE SmartFoodDB;
 
-CREATE TABLE Donor (
+create table if not exists Donor (
   Donor_ID INT AUTO_INCREMENT PRIMARY KEY,
   Name VARCHAR(120) NOT NULL,
   Type VARCHAR(40) NOT NULL DEFAULT 'Individual',
   Pincode VARCHAR(10) NOT NULL
 ) ENGINE=InnoDB;
 
-CREATE TABLE Waiver (
+create table if not exists Waiver (
   Waiver_ID INT AUTO_INCREMENT PRIMARY KEY,
   Signed_Date DATE NOT NULL,
   Donor_ID INT NOT NULL,
@@ -18,13 +18,13 @@ CREATE TABLE Waiver (
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE Volunteer (
+create table if not exists Volunteer (
   Vol_ID INT AUTO_INCREMENT PRIMARY KEY,
   Name VARCHAR(120) NOT NULL,
   License_No VARCHAR(80) NOT NULL UNIQUE
 ) ENGINE=InnoDB;
 
-CREATE TABLE Driver (
+create table if not exists Driver (
   Vol_ID INT PRIMARY KEY,
   Vehicle_Type VARCHAR(60) NOT NULL,
   CONSTRAINT fk_driver_volunteer
@@ -32,7 +32,7 @@ CREATE TABLE Driver (
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE Inspector (
+create table if not exists Inspector (
   Vol_ID INT PRIMARY KEY,
   Certification VARCHAR(100) NOT NULL,
   CONSTRAINT fk_inspector_volunteer
@@ -40,7 +40,7 @@ CREATE TABLE Inspector (
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE Beneficiary_NGO (
+create table if not exists Beneficiary_NGO (
   NGO_ID INT AUTO_INCREMENT PRIMARY KEY,
   Name VARCHAR(120) NOT NULL,
   Capacity INT NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE Beneficiary_NGO (
   CONSTRAINT chk_ngo_capacity CHECK (Capacity > 0)
 ) ENGINE=InnoDB;
 
-CREATE TABLE Food_Inventory (
+create table if not exists Food_Inventory (
   FID INT AUTO_INCREMENT PRIMARY KEY,
   Name VARCHAR(120) NOT NULL,
   Quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -63,7 +63,7 @@ CREATE TABLE Food_Inventory (
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE Inspection_Report (
+create table if not exists Inspection_Report (
   Report_ID INT AUTO_INCREMENT PRIMARY KEY,
   Report_Date DATE NOT NULL,
   Quality_Score INT NOT NULL,
@@ -79,7 +79,7 @@ CREATE TABLE Inspection_Report (
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE Trip (
+create table if not exists Trip (
   Trip_ID INT AUTO_INCREMENT PRIMARY KEY,
   Vehicle_No VARCHAR(20) NOT NULL,
   Start_Time DATETIME NOT NULL,
@@ -95,7 +95,7 @@ CREATE TABLE Trip (
     ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
-CREATE TABLE Claim (
+create table if not exists Claim (
   Claim_ID INT AUTO_INCREMENT PRIMARY KEY,
   Claim_Date DATE NOT NULL,
   NGO_ID INT NOT NULL,
@@ -109,7 +109,7 @@ CREATE TABLE Claim (
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE Compost_Batch (
+create table if not exists Compost_Batch (
   Batch_ID INT AUTO_INCREMENT PRIMARY KEY,
   Process_Type VARCHAR(80) NOT NULL,
   Start_Date DATE NOT NULL,
@@ -120,7 +120,7 @@ CREATE TABLE Compost_Batch (
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE Upcycled_Product (
+create table if not exists Upcycled_Product (
   Product_ID INT AUTO_INCREMENT PRIMARY KEY,
   Name VARCHAR(120) NOT NULL,
   Price DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -133,7 +133,7 @@ CREATE TABLE Upcycled_Product (
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE Food_Audit_Log (
+create table if not exists Food_Audit_Log (
   Audit_ID INT AUTO_INCREMENT PRIMARY KEY,
   FID INT NOT NULL,
   Action_Type VARCHAR(20) NOT NULL,
@@ -154,52 +154,52 @@ CREATE INDEX idx_compost_start ON Compost_Batch(Start_Date);
 CREATE INDEX idx_product_batch ON Upcycled_Product(Batch_ID);
 CREATE INDEX idx_audit_food ON Food_Audit_Log(FID);
 
-DELIMITER $$
+-- DELIMITER $$
 
-CREATE TRIGGER SendToCompost
-AFTER UPDATE ON Food_Inventory
-FOR EACH ROW
-BEGIN
-    -- Check if the status literally JUST changed to SPOILED
-    IF OLD.status != 'BAD' AND NEW.status = 'BAD' THEN
+-- CREATE TRIGGER SendToCompost
+-- AFTER UPDATE ON Food_Inventory
+-- FOR EACH ROW
+-- BEGIN
+--     -- Check if the status literally JUST changed to SPOILED
+--     IF OLD.status != 'BAD' AND NEW.status = 'BAD' THEN
         
-        -- Insert into the compost batch, using our Function to do the math!
-        INSERT INTO Compost_Batch (food_id, compost_weight_kg, log_time)
-        VALUES (NEW.food_id, GetCompostWeight(NEW.qty_kg), NOW());
+--         -- Insert into the compost batch, using our Function to do the math!
+--         INSERT INTO Compost_Batch (food_id, compost_weight_kg, log_time)
+--         VALUES (NEW.food_id, GetCompostWeight(NEW.qty_kg), NOW());
         
-    END IF;
-END $$
+--     END IF;
+-- END $$
 
-CREATE PROCEDURE ProcessExpiredFood()
-BEGIN
-    DECLARE done INT DEFAULT 0;
-    DECLARE v_id INT;
+-- CREATE PROCEDURE ProcessExpiredFood()
+-- BEGIN
+--     DECLARE done INT DEFAULT 0;
+--     DECLARE v_id INT;
     
-    -- Grab only food that is expired but hasn't been marked spoiled yet
-    DECLARE exp_cursor CURSOR FOR 
-        SELECT food_id FROM Food_Inventory 
-        WHERE expiry_date < CURDATE() AND status != 'SPOILED';
+--     -- Grab only food that is expired but hasn't been marked spoiled yet
+--     DECLARE exp_cursor CURSOR FOR 
+--         SELECT food_id FROM Food_Inventory 
+--         WHERE expiry_date < CURDATE() AND status != 'SPOILED';
         
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+--     DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
 
-    OPEN exp_cursor;
+--     OPEN exp_cursor;
     
-    read_loop: LOOP
-        FETCH exp_cursor INTO v_id;
+--     read_loop: LOOP
+--         FETCH exp_cursor INTO v_id;
         
-        IF done = 1 THEN
-            LEAVE read_loop;
-        END IF;
+--         IF done = 1 THEN
+--             LEAVE read_loop;
+--         END IF;
 
-        -- Update the status. (THIS WAKES UP THE TRIGGER!)
-        UPDATE Food_Inventory SET status = 'SPOILED' WHERE food_id = v_id;
+--         -- Update the status. (THIS WAKES UP THE TRIGGER!)
+--         UPDATE Food_Inventory SET status = 'SPOILED' WHERE food_id = v_id;
         
-    END LOOP;
+--     END LOOP;
     
-    CLOSE exp_cursor;
-END $$
+--     CLOSE exp_cursor;
+-- END $$
 
-DELIMITER ;
+-- DELIMITER ;
 
 INSERT INTO Donor (Name, Type, Pincode) VALUES
   ('Asha Community Kitchen', 'Commercial', '411001'),
