@@ -4,6 +4,8 @@
 
 ---
 
+Deployement on Vercel: https://smartfood-redistribution.vercel.app/
+
 ## ⚡ Quick Start (5 minutes)
 
 ### Prerequisites
