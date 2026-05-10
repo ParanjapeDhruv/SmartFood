@@ -13,12 +13,21 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MySQL Connection Pool
+// MySQL Connection Pool configured for TiDB Cloud
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'SmartFoodDB',
+  // Use Environment Variables for security
+  host: process.env.TIDB_HOST || 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+  user: process.env.TIDB_USER || 'hzefXUdo6KJNcGf.root',
+  password: process.env.TIDB_PASSWORD || 'mIxtaPrDymbCHN2M',
+  database: process.env.TIDB_DB_NAME || 'test', // Use 'test' instead of 'sys' for your app tables
+  port: process.env.TIDB_PORT || 4000,
+  
+  // CRITICAL: TiDB Cloud requires SSL
+  ssl: {
+    minVersion: 'TLSv1.2',
+    rejectUnauthorized: true 
+  },
+  
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
