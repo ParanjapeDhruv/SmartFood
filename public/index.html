@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Food Redistribution System</title>
+  <style>
+    :root {
+      --bg: #f5efe4;
+      --surface: #fffdf8;
+      --surface-alt: #f8f1e5;
+      --ink: #203027;
+      --muted: #5d6d63;
+      --border: rgba(32, 48, 39, 0.12);
+      --primary: #2f7d4c;
+      --primary-soft: rgba(47, 125, 76, 0.12);
+      --accent: #c8791a;
+      --accent-soft: rgba(200, 121, 26, 0.14);
+      --danger: #b34b3f;
+      --danger-soft: rgba(179, 75, 63, 0.14);
+      --info: #2f5f8f;
+      --shadow: 0 24px 50px rgba(44, 53, 46, 0.12);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255, 218, 147, 0.5), transparent 30%),
+        radial-gradient(circle at top right, rgba(109, 176, 125, 0.35), transparent 28%),
+        linear-gradient(180deg, #f8f3ea 0%, #f4eddc 55%, #efe5d0 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(32, 48, 39, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(32, 48, 39, 0.02) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.8), transparent 92%);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 3.5rem 1rem 6rem;
+      background: linear-gradient(135deg, #295339 0%, #3f7b53 42%, #d9b15e 100%);
+      color: #fff9ef;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 22rem;
+      height: 22rem;
+      right: -7rem;
+      top: -8rem;
+      border-radius: 50%;
+      background: rgba(255, 249, 239, 0.16);
+      filter: blur(8px);
+    }
+
+    .hero-inner {
+      width: min(1180px, calc(100% - 1rem));
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(255, 249, 239, 0.14);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+    }
+
+    .hero h1 {
+      margin: 1rem 0 0.8rem;
+      font-size: clamp(2rem, 5vw, 3.8rem);
+      line-height: 1.05;
+      max-width: 13ch;
+    }
+
+    .subtitle {
+      max-width: 56rem;
+      font-size: 1.02rem;
+      line-height: 1.7;
+      color: rgba(255, 249, 239, 0.9);
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 1rem));
+      margin: -3rem auto 3rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .nav-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 0.75rem;
+      padding: 1rem;
+      background: rgba(255, 253, 248, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.65);
+      border-radius: calc(var(--radius) + 4px);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+    }
+
+    .nav-btn,
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .nav-btn {
+      padding: 0.8rem 1rem;
+      background: rgba(47, 125, 76, 0.08);
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .nav-btn:hover,
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .nav-btn.active {
+      background: linear-gradient(135deg, var(--primary), #4b9868);
+      color: #fff;
+      box-shadow: 0 10px 26px rgba(47, 125, 76, 0.25);
+    }
+
+    .alert-container {
+      min-height: 3.25rem;
+      margin: 1rem 0 0;
+    }
+
+    .alert {
+      padding: 0.95rem 1rem;
+      border-radius: 18px;
+      border: 1px solid transparent;
+      box-shadow: 0 12px 24px rgba(44, 53, 46, 0.08);
+    }
+
+    .alert.success {
+      background: rgba(47, 125, 76, 0.12);
+      color: #1d5c37;
+      border-color: rgba(47, 125, 76, 0.18);
+    }
+
+    .alert.error {
+      background: rgba(179, 75, 63, 0.12);
+      color: #7d2d25;
+      border-color: rgba(179, 75, 63, 0.18);
+    }
+
+    .alert.info {
+      background: rgba(47, 95, 143, 0.12);
+      color: #214d77;
+      border-color: rgba(47, 95, 143, 0.18);
+    }
+
+    .content-area {
+      display: none;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .content-area.active {
+      display: grid;
+    }
+
+    .section-grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255, 253, 248, 0.96), rgba(250, 244, 233, 0.96));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2,
+    .card h3 {
+      margin-bottom: 0.35rem;
+    }
+
+    .card .muted {
+      color: var(--muted);
+    }
+
+    .full-span {
+      grid-column: 1 / -1;
+    }
+
+    .stats-grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+
+    .stat-card {
+      position: relative;
+      overflow: hidden;
+      padding: 1.15rem;
+      border-radius: var(--radius);
+      background: linear-gradient(160deg, rgba(255, 253, 248, 0.96), rgba(244, 236, 219, 0.96));
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card::after {
+      content: "";
+      position: absolute;
+      right: -1rem;
+      bottom: -1rem;
+      width: 6rem;
+      height: 6rem;
+      border-radius: 50%;
+      background: rgba(47, 125, 76, 0.08);
+    }
+
+    .stat-kicker {
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.45rem;
+    }
+
+    .stat-value {
+      font-size: clamp(1.9rem, 4vw, 2.8rem);
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+
+    .note-grid {
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      margin-top: 1rem;
+    }
+
+    .mini-panel {
+      padding: 0.95rem;
+      border-radius: 18px;
+      background: var(--surface-alt);
+      border: 1px solid rgba(32, 48, 39, 0.08);
+    }
+
+    .mini-panel h3 {
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 0.85rem;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      font-size: 0.94rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid rgba(32, 48, 39, 0.12);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 0.8rem 0.9rem;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .form-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 0.25rem;
+    }
+
+    button.primary {
+      padding: 0.78rem 1.15rem;
+      background: linear-gradient(135deg, var(--primary), #479160);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(47, 125, 76, 0.2);
+    }
+
+    button.secondary {
+      padding: 0.78rem 1.15rem;
+      background: linear-gradient(135deg, var(--accent), #d69a48);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(200, 121, 26, 0.18);
+    }
+
+    button.ghost {
+      padding: 0.72rem 1rem;
+      color: var(--ink);
+      background: rgba(32, 48, 39, 0.06);
+      border: 1px solid rgba(32, 48, 39, 0.1);
+    }
+
+    button.danger {
+      padding: 0.72rem 1rem;
+      color: #fff;
+      background: linear-gradient(135deg, var(--danger), #cf6558);
+      box-shadow: 0 12px 24px rgba(179, 75, 63, 0.18);
+    }
+
+    button.tiny {
+      padding: 0.45rem 0.7rem;
+      font-size: 0.83rem;
+      font-weight: 700;
+    }
+
+    .table-shell {
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid rgba(32, 48, 39, 0.08);
+      background: rgba(255, 255, 255, 0.75);
+    }
+
+    table {
+      width: 100%;
+      min-width: 620px;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 0.78rem 0.72rem;
+      border-bottom: 1px solid rgba(32, 48, 39, 0.08);
+      vertical-align: top;
+    }
+
+    th {
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: rgba(248, 241, 229, 0.95);
+      position: sticky;
+      top: 0;
+    }
+
+    tbody tr:hover {
+      background: rgba(47, 125, 76, 0.04);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.32rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .status-good {
+      background: var(--primary-soft);
+      color: #1e5d37;
+      border-color: rgba(47, 125, 76, 0.18);
+    }
+
+    .status-pending {
+      background: var(--accent-soft);
+      color: #8e570f;
+      border-color: rgba(200, 121, 26, 0.18);
+    }
+
+    .status-bad {
+      background: var(--danger-soft);
+      color: #8d3228;
+      border-color: rgba(179, 75, 63, 0.18);
+    }
+
+    .inline-tip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0.7rem;
+      border-radius: 999px;
+      background: rgba(47, 95, 143, 0.08);
+      color: #27537d;
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .list-copy {
+      display: grid;
+      gap: 0.55rem;
+      color: var(--muted);
+    }
+
+    .empty-note {
+      color: var(--muted);
+      text-align: center;
+      padding: 1rem;
+    }
+
+    @media (max-width: 720px) {
+      .hero {
+        padding: 2.8rem 0.85rem 5rem;
+      }
+
+      .shell,
+      .hero-inner {
+        width: min(100%, calc(100% - 1rem));
+      }
+
+      table {
+        min-width: 540px;
+      }
+    }
+  </style>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Food rescue and waste operations</p>
+      <h1>Smart Food Redistribution System</h1>
+      <p class="subtitle">
+        Run donor intake, food inspection, logistics, NGO claims, compost conversion, and product tracking from one
+        operational workspace backed by the Express and MySQL API in this project.
+      </p>
+    </div>
+  </header>
+
+  <main class="shell">
+    <nav class="nav-grid" aria-label="Main navigation">
+      <button type="button" class="nav-btn active" data-section="dashboard">Dashboard</button>
+      <button type="button" class="nav-btn" data-section="donors">Donors</button>
+      <button type="button" class="nav-btn" data-section="inventory">Inventory</button>
+      <button type="button" class="nav-btn" data-section="inspections">Inspections</button>
+      <button type="button" class="nav-btn" data-section="logistics">Logistics</button>
+      <button type="button" class="nav-btn" data-section="ngos">NGOs</button>
+      <button type="button" class="nav-btn" data-section="compost">Compost</button>
+      <button type="button" class="nav-btn" data-section="upcycled">Upcycled</button>
+    </nav>
+
+    <div id="alert-container" class="alert-container" aria-live="polite"></div>
+
+    <section id="dashboard" class="content-area active">
+      <div class="stats-grid">
+        <article class="stat-card">
+          <div class="stat-kicker">Total food items</div>
+          <div id="stat-total-food" class="stat-value">--</div>
+          <div class="muted">All donation records in inventory</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-kicker">Good food</div>
+          <div id="stat-good-food" class="stat-value">--</div>
+          <div class="muted">Claim-ready after inspection</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-kicker">Bad food</div>
+          <div id="stat-bad-food" class="stat-value">--</div>
+          <div class="muted">Diverted to compost or reuse</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-kicker">Pending</div>
+          <div id="stat-pending-food" class="stat-value">--</div>
+          <div class="muted">Waiting for inspection outcome</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-kicker">NGOs served</div>
+          <div id="stat-ngos-served" class="stat-value">--</div>
+          <div class="muted">Unique organizations with claims</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-kicker">Good quantity</div>
+          <div id="stat-good-quantity" class="stat-value">--</div>
+          <div class="muted">Available quantity across good inventory</div>
+        </article>
+      </div>
+
+      <div class="section-grid">
+        <article class="card">
+          <h2>Operational flow</h2>
+          <p class="muted">
+            Donations enter as inventory, move through inspection, then branch into NGO claims if good or compost if bad.
+          </p>
+          <div class="note-grid">
+            <div class="mini-panel">
+              <h3>1. Intake</h3>
+              <p class="muted">Register donors, waivers, and new food items with expiry and quantity details.</p>
+            </div>
+            <div class="mini-panel">
+              <h3>2. Verify</h3>
+              <p class="muted">Inspectors score food quality, which updates condition automatically.</p>
+            </div>
+            <div class="mini-panel">
+              <h3>3. Route</h3>
+              <p class="muted">Claim good food for NGOs and convert bad food into compost batches.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Working notes</h2>
+          <div class="list-copy">
+            <span class="inline-tip">Good food can be claimed only once.</span>
+            <span class="inline-tip">Bad food creates or links to compost batches.</span>
+            <span class="inline-tip">Trips can be linked directly to food records.</span>
+            <span class="inline-tip">Upcycled products stay attached to their compost source batch.</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="donors" class="content-area">
+      <div class="section-grid">
+        <article class="card">
+          <h2>Add donor</h2>
+          <p class="muted">Capture the food source first so inventory and waivers can reference it.</p>
+          <form id="donor-form" class="form-grid">
+            <label>
+              Donor name
+              <input type="text" name="name" placeholder="Asha Community Kitchen" required>
+            </label>
+            <label>
+              Donor type
+              <select name="type">
+                <option value="Individual">Individual</option>
+                <option value="Commercial">Commercial</option>
+                <option value="Restaurant">Restaurant</option>
+                <option value="Hotel">Hotel</option>
+                <option value="NGO Partner">NGO Partner</option>
+              </select>
+            </label>
+            <label>
+              Pincode
+              <input type="text" name="pincode" placeholder="411001" required>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary">Save donor</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Create waiver</h2>
+          <p class="muted">Use waivers to track legal consent from donors before pickup or allocation.</p>
+          <form id="waiver-form" class="form-grid">
+            <label>
+              Donor
+              <select id="waiver-donor-select" name="donorId" required></select>
+            </label>
+            <label>
+              Signed date
+              <input id="waiver-signed-date" type="date" name="signedDate">
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="secondary">Save waiver</button>
+            </div>
+          </form>
+        </article>
+      </div>
+
+      <div class="section-grid">
+        <article class="card">
+          <h2>Donor directory</h2>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Pincode</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="donors-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Waiver log</h2>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Signed date</th>
+                  <th>Donor</th>
+                </tr>
+              </thead>
+              <tbody id="waivers-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="inventory" class="content-area">
+      <div class="section-grid">
+        <article class="card">
+          <h2>Add food inventory</h2>
+          <p class="muted">New donations enter as Pending until inspection or a status update is applied.</p>
+          <form id="food-form" class="form-grid">
+            <label>
+              Food name
+              <input type="text" name="name" placeholder="Fresh apples" required>
+            </label>
+            <label>
+              Quantity
+              <input type="number" name="quantity" min="0" step="0.01" placeholder="50" required>
+            </label>
+            <label>
+              Unit
+              <input type="text" name="unit" placeholder="kg, boxes, liters" required>
+            </label>
+            <label>
+              Expiry date
+              <input type="date" name="expiryDate" required>
+            </label>
+            <label>
+              Category
+              <select name="category">
+                <option value="Produce">Produce</option>
+                <option value="Cooked Meals">Cooked Meals</option>
+                <option value="Dairy">Dairy</option>
+                <option value="Bakery">Bakery</option>
+                <option value="Dry Goods">Dry Goods</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label>
+              Donor
+              <select id="food-donor-select" name="donorId" required></select>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary">Add inventory item</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Status controls</h2>
+          <p class="muted">Use the quick actions in the table to adjust condition directly, or submit an inspection report.</p>
+          <div class="note-grid">
+            <div class="mini-panel">
+              <h3>Good</h3>
+              <p class="muted">Claimable by NGOs while quantity is still above zero.</p>
+            </div>
+            <div class="mini-panel">
+              <h3>Pending</h3>
+              <p class="muted">Awaiting inspection or manual review.</p>
+            </div>
+            <div class="mini-panel">
+              <h3>Bad</h3>
+              <p class="muted">Automatically eligible for compost batch creation.</p>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <article class="card">
+        <h2>Inventory register</h2>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Food</th>
+                <th>Donor</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Expiry</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="food-table-body"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="inspections" class="content-area">
+      <div class="section-grid">
+        <article class="card">
+          <h2>Add inspector</h2>
+          <p class="muted">Inspectors are volunteers with certification metadata.</p>
+          <form id="inspector-form" class="form-grid">
+            <label>
+              Inspector name
+              <input type="text" name="name" placeholder="Dr Meena Kulkarni" required>
+            </label>
+            <label>
+              License number
+              <input type="text" name="licenseNo" placeholder="INS-FSSAI-201" required>
+            </label>
+            <label>
+              Certification
+              <input type="text" name="certification" placeholder="Food Safety Level 1" required>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="secondary">Save inspector</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Record inspection</h2>
+          <p class="muted">Scores of 7 or more become Good, below 5 become Bad, and 5 to 6 stay Pending.</p>
+          <form id="inspection-form" class="form-grid">
+            <label>
+              Inspector
+              <select id="inspection-inspector-select" name="inspectorId" required></select>
+            </label>
+            <label>
+              Food item
+              <select id="inspection-food-select" name="foodId" required></select>
+            </label>
+            <label>
+              Quality score
+              <input type="number" name="qualityScore" min="1" max="10" step="1" required>
+            </label>
+            <label class="full-span">
+              Notes
+              <textarea name="notes" placeholder="Fresh produce, ready for same-day delivery"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary">Submit inspection</button>
+            </div>
+          </form>
+        </article>
+      </div>
+
+      <div class="section-grid">
+        <article class="card">
+          <h2>Inspector roster</h2>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>License</th>
+                  <th>Certification</th>
+                </tr>
+              </thead>
+              <tbody id="inspectors-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Inspection reports</h2>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Inspector</th>
+                  <th>Food</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="inspections-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="logistics" class="content-area">
+      <div class="section-grid">
+        <article class="card">
+          <h2>Add driver</h2>
+          <p class="muted">Drivers are saved as volunteers and linked to trip records.</p>
+          <form id="driver-form" class="form-grid">
+            <label>
+              Driver name
+              <input type="text" name="name" placeholder="Ramesh Kumar" required>
+            </label>
+            <label>
+              License number
+              <input type="text" name="licenseNo" placeholder="DRV-MH12-101" required>
+            </label>
+            <label>
+              Vehicle type
+              <input type="text" name="vehicleType" placeholder="Van or pickup truck" required>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="secondary">Save driver</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Create trip</h2>
+          <p class="muted">Link a trip to a driver and optionally attach the specific food item being moved.</p>
+          <form id="trip-form" class="form-grid">
+            <label>
+              Vehicle number
+              <input type="text" name="vehicleNo" placeholder="MH12AB1201" required>
+            </label>
+            <label>
+              Start time
+              <input id="trip-start-time" type="datetime-local" name="startTime" required>
+            </label>
+            <label>
+              Distance
+              <input type="number" name="distance" min="0" step="0.1" placeholder="12.5">
+            </label>
+            <label>
+              Driver
+              <select id="trip-driver-select" name="driverId" required></select>
+            </label>
+            <label>
+              Food item
+              <select id="trip-food-select" name="foodId"></select>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary">Create trip</button>
+            </div>
+          </form>
+        </article>
+      </div>
+
+      <div class="section-grid">
+        <article class="card">
+          <h2>Driver roster</h2>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>License</th>
+                  <th>Vehicle type</th>
+                </tr>
+              </thead>
+              <tbody id="drivers-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Trip log</h2>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Start time</th>
+                  <th>Vehicle</th>
+                  <th>Driver</th>
+                  <th>Food</th>
+                  <th>Distance</th>
+                </tr>
+              </thead>
+              <tbody id="trips-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="ngos" class="content-area">
+      <div class="section-grid">
+        <article class="card">
+          <h2>Register NGO</h2>
+          <p class="muted">Beneficiary NGOs can claim only good-condition food with available quantity.</p>
+          <form id="ngo-form" class="form-grid">
+            <label>
+              NGO name
+              <input type="text" name="name" placeholder="Hope Foundation" required>
+            </label>
+            <label>
+              Capacity
+              <input type="number" name="capacity" min="1" step="1" placeholder="300" required>
+            </label>
+            <label>
+              NGO type
+              <input type="text" name="type" placeholder="Shelter, children, senior care">
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="secondary">Save NGO</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Create claim</h2>
+          <p class="muted">The backend uses transaction checks to prevent double-claims and zero-quantity claims.</p>
+          <form id="claim-form" class="form-grid">
+            <label>
+              NGO
+              <select id="claim-ngo-select" name="ngoId" required></select>
+            </label>
+            <label>
+              Good food item
+              <select id="claim-food-select" name="foodId" required></select>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary">Claim food</button>
+            </div>
+          </form>
+        </article>
+      </div>
+
+      <div class="section-grid">
+        <article class="card">
+          <h2>NGO network</h2>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Capacity</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody id="ngos-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Claims</h2>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>NGO</th>
+                  <th>Food</th>
+                  <th>Quantity</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="claims-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="compost" class="content-area">
+      <div class="section-grid">
+        <article class="card">
+          <h2>Create compost batch</h2>
+          <p class="muted">Bad food normally creates a batch automatically, but you can also add one manually here.</p>
+          <form id="compost-form" class="form-grid">
+            <label>
+              Bad food item
+              <select id="compost-food-select" name="foodId" required></select>
+            </label>
+            <label>
+              Process type
+              <select name="processType">
+                <option value="Organic Waste">Organic Waste</option>
+                <option value="Anaerobic Digestion">Anaerobic Digestion</option>
+                <option value="Dry Composting">Dry Composting</option>
+              </select>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary">Create batch</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Compost overview</h2>
+          <p class="muted">Batches stay linked to the exact source food item so waste diversion remains traceable.</p>
+          <div class="list-copy">
+            <span class="inline-tip">One food item can belong to only one compost batch.</span>
+            <span class="inline-tip">Upcycled products are created from these batches.</span>
+          </div>
+        </article>
+      </div>
+
+      <article class="card">
+        <h2>Compost batches</h2>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Batch ID</th>
+                <th>Food source</th>
+                <th>Process type</th>
+                <th>Start date</th>
+                <th>Quantity</th>
+              </tr>
+            </thead>
+            <tbody id="compost-table-body"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="upcycled" class="content-area">
+      <div class="section-grid">
+        <article class="card">
+          <h2>Add upcycled product</h2>
+          <p class="muted">Track saleable or reusable output generated from compost batches.</p>
+          <form id="product-form" class="form-grid">
+            <label>
+              Product name
+              <input type="text" name="name" placeholder="Compost Mix - 2kg" required>
+            </label>
+            <label>
+              Price
+              <input type="number" name="price" min="0" step="0.01" placeholder="150">
+            </label>
+            <label>
+              Stock
+              <input type="number" name="stock" min="0" step="1" placeholder="25">
+            </label>
+            <label>
+              Compost batch
+              <select id="product-batch-select" name="batchId" required></select>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary">Save product</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Reuse loop</h2>
+          <p class="muted">This section closes the operational loop by turning non-distributable food into useful inventory.</p>
+          <div class="note-grid">
+            <div class="mini-panel">
+              <h3>Traceability</h3>
+              <p class="muted">Every product links back to one compost batch and one food source.</p>
+            </div>
+            <div class="mini-panel">
+              <h3>Inventory</h3>
+              <p class="muted">Use price and stock to manage resale or internal distribution planning.</p>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <article class="card">
+        <h2>Upcycled products</h2>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Source food</th>
+                <th>Process</th>
+                <th>Price</th>
+                <th>Stock</th>
+              </tr>
+            </thead>
+            <tbody id="products-table-body"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
