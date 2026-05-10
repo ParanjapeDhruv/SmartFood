@@ -17,8 +17,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const pool = mysql.createPool({
   host: process.env.TIDB_HOST || 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
   user: process.env.TIDB_USER || 'hzefXUdo6KJNcGf.root',
-  password: process.env.TIDB_PASSWORD || 'mIxtaPrDymbCHN2M',
-  database: process.env.TIDB_DB_NAME || 'test', 
+  password: process.env.TIDB_PASSWORD || '4naYGIbe23zZG9eX',
+  database: process.env.TIDB_DB_NAME || 'SmartFoodDB', 
   port: process.env.TIDB_PORT || 4000,
   ssl: {
     minVersion: 'TLSv1.2',
